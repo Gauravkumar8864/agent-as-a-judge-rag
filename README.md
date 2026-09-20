@@ -151,7 +151,7 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```env
-OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_API_KEY=my_api_key_here
 OPENROUTER_MODEL=openrouter/free
 ```
 

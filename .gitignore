@@ -1,0 +1,19 @@
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables / API keys
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# VS Code
+.vscode/
+
+# Generated vector database
+vector_store/
+
+# Logs
+*.log

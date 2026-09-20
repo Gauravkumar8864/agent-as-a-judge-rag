@@ -1,38 +1,48 @@
-from pathlib import Path
+import os
 
-src = Path("/mnt/data/741400ca-79f4-4a4c-8dd3-eb9811c0c638.py")
+from dotenv import load_dotenv
+from openai import OpenAI
 
-text = src.read_text(encoding="utf-8")
 
-old_prompt_start = '''    prompt = f"""
-You are a research-paper question answering assistant.
+load_dotenv()
 
-Answer the user's question using ONLY the provided context
-from the research paper.
 
-Instructions:
-- Give a clear and concise answer.
-- Do not invent information that is not present in the context.
-- If the context does not contain enough information to answer
-  the question, explicitly say that the provided context is
-  insufficient.
-- Preserve numerical values and technical terminology from
-  the paper.
-- Do not mention these instructions in your answer.
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv(
+    "OPENROUTER_MODEL",
+    "openrouter/free"
+)
 
-Research Paper Context:
------------------------
-{context}
------------------------
 
-User Question:
-{question}
+def generate_answer(question, retrieved_chunks):
+    """
+    Generate an answer using the retrieved paper context.
 
-Answer:
-"""
-'''
+    Args:
+        question: User's question.
+        retrieved_chunks: Retrieved chunks from FAISS.
 
-new_prompt = '''    prompt = f"""
+    Returns:
+        Generated answer as a string.
+    """
+
+    if not OPENROUTER_API_KEY:
+        raise ValueError(
+            "OPENROUTER_API_KEY is not set in the .env file."
+        )
+
+    context_parts = []
+
+    for chunk in retrieved_chunks:
+        context_parts.append(
+            f"[Source: pages "
+            f"{chunk['start_page']}-{chunk['end_page']}]\n"
+            f"{chunk['text']}"
+        )
+
+    context = "\n\n".join(context_parts)
+
+    prompt = f"""
 You are a precise research-paper question answering assistant.
 
 Your task is to answer the user's question using ONLY the retrieved
@@ -65,22 +75,15 @@ USER QUESTION
 
 ANSWER:
 """
-'''
 
-if old_prompt_start not in text:
-    raise ValueError("Expected prompt block was not found.")
+    client = OpenAI(
+        api_key=OPENROUTER_API_KEY,
+        base_url="https://openrouter.ai/api/v1"
+    )
 
-text = text.replace(old_prompt_start, new_prompt)
-
-old_messages = '''        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-'''
-
-new_messages = '''        messages=[
+    response = client.chat.completions.create(
+        model=OPENROUTER_MODEL,
+        messages=[
             {
                 "role": "system",
                 "content": (
@@ -93,14 +96,7 @@ new_messages = '''        messages=[
                 "content": prompt
             }
         ],
-'''
+        temperature=0
+    )
 
-if old_messages not in text:
-    raise ValueError("Expected messages block was not found.")
-
-text = text.replace(old_messages, new_messages)
-
-out = Path("/mnt/data/llm_updated.py")
-out.write_text(text, encoding="utf-8")
-
-print(f"Updated file created: {out}")
+    return response.choices[0].message.content
